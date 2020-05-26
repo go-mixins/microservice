@@ -8,12 +8,12 @@ import (
 
 	"github.com/go-mixins/log"
 	mdGRPC "github.com/go-mixins/metadata/grpc"
-	"github.com/gogo/protobuf/proto"
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/go-mixins/microservice/json"
 	grpcMW "github.com/grpc-ecosystem/go-grpc-middleware"

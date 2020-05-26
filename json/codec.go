@@ -1,31 +1,36 @@
 package json
 
 import (
-	"bytes"
 	"io"
+	"io/ioutil"
 
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
+	jsonpb "google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"golang.org/x/xerrors"
 )
 
 // Дефолтные кодеки
 var (
-	DefaultMarshaler = &jsonpb.Marshaler{
-		Indent:       "\t",
-		EmitDefaults: true,
-		OrigName:     true,
+	DefaultMarshaler = &jsonpb.MarshalOptions{
+		Multiline:       true,
+		Indent:          "\t",
+		EmitUnpopulated: true,
+		UseProtoNames:   true,
 	}
 
-	DefaultUnmarshaler = &jsonpb.Unmarshaler{
-		AllowUnknownFields: true,
+	DefaultUnmarshaler = &jsonpb.UnmarshalOptions{
+		DiscardUnknown: true,
 	}
 )
 
 // Unmarshal convenience wrapper
 func Unmarshal(r io.Reader, pb proto.Message) error {
-	if err := DefaultUnmarshaler.Unmarshal(r, pb); err != nil {
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	if err := DefaultUnmarshaler.Unmarshal(data, pb); err != nil {
 		return xerrors.Errorf("unmarshal JSON: %w")
 	}
 	return nil
@@ -33,25 +38,20 @@ func Unmarshal(r io.Reader, pb proto.Message) error {
 
 // Marshal convenience wrapper
 func Marshal(out io.Writer, pb proto.Message) error {
-	if err := DefaultMarshaler.Marshal(out, pb); err != nil {
+	data, err := DefaultMarshaler.Marshal(pb)
+	if err != nil {
 		return xerrors.Errorf("marshal to JSON: %w", err)
 	}
-	return nil
+	_, err = out.Write(data)
+	return err
 }
 
 // Encode object to JSON
 func Encode(src proto.Message) ([]byte, error) {
-	buf := new(bytes.Buffer)
-	if err := DefaultMarshaler.Marshal(buf, src); err != nil {
-		return nil, xerrors.Errorf("encode JSON: %w", err)
-	}
-	return buf.Bytes(), nil
+	return DefaultMarshaler.Marshal(src)
 }
 
 // Decode object from JSON
 func Decode(data []byte, dest proto.Message) error {
-	if err := DefaultUnmarshaler.Unmarshal(bytes.NewReader(data), dest); err != nil {
-		return xerrors.Errorf("decode JSON: %w", err)
-	}
-	return nil
+	return DefaultUnmarshaler.Unmarshal(data, dest)
 }

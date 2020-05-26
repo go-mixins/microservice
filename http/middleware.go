@@ -4,25 +4,27 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httputil"
 
 	"github.com/go-mixins/log"
-	"github.com/gogo/protobuf/jsonpb"
-	"github.com/gogo/protobuf/proto"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/charmap"
 	"golang.org/x/xerrors"
+	jsonpb "google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/go-noodle/bind"
 	"github.com/go-noodle/noodle"
 	"github.com/go-noodle/render"
 )
 
-var marshaler = &jsonpb.Marshaler{
-	Indent:       "\t",
-	EmitDefaults: true,
-	OrigName:     true,
+var marshaler = &jsonpb.MarshalOptions{
+	Multiline:       true,
+	Indent:          "\t",
+	EmitUnpopulated: true,
+	UseProtoNames:   true,
 }
 
 // Debug incoming HTTP requests
@@ -53,14 +55,20 @@ func Render() noodle.Middleware {
 			return nil
 		}
 		if pb, ok := dest.(proto.Message); ok {
-			return marshaler.Marshal(w, pb)
+			res, err := marshaler.Marshal(pb)
+			if err != nil {
+				return err
+			}
+			if _, err := w.Write(res); err != nil {
+				return err
+			}
 		}
 		return json.NewEncoder(w).Encode(dest)
 	}, "application/json")
 }
 
-var unmarshaler = &jsonpb.Unmarshaler{
-	AllowUnknownFields: true,
+var unmarshaler = &jsonpb.UnmarshalOptions{
+	DiscardUnknown: true,
 }
 
 type decoder struct {
@@ -69,7 +77,11 @@ type decoder struct {
 
 func (d decoder) Decode(dest interface{}) (rErr error) {
 	if pb, ok := dest.(proto.Message); ok {
-		return xerrors.Errorf("decode jsonpb: %w", unmarshaler.Unmarshal(d.r, pb))
+		data, err := ioutil.ReadAll(d.r)
+		if err != nil {
+			return err
+		}
+		return xerrors.Errorf("decode jsonpb: %w", unmarshaler.Unmarshal(data, pb))
 	}
 	return xerrors.Errorf("decode json: %w", json.NewDecoder(d.r).Decode(dest))
 }
