@@ -1,46 +1,38 @@
 package app
 
 import (
-	"fmt"
-	"os"
-	"strings"
-
-	"golang.org/x/xerrors"
-
-	"contrib.go.opencensus.io/exporter/jaeger"
-	"contrib.go.opencensus.io/exporter/prometheus"
+	"github.com/go-mixins/microservice/census/jaeger"
+	"github.com/go-mixins/microservice/census/prom"
+	"github.com/go-mixins/microservice/config"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 )
 
 func (app *App) connectTracing() error {
-	cfg := app.Config.Jaeger
-	serviceName := os.Getenv("SERVICE_NAME")
-	je, err := jaeger.NewExporter(jaeger.Options{
-		AgentEndpoint: fmt.Sprintf("%s:%d", cfg.JaegerAgentHost, cfg.JaegerAgentPort),
-		Process: jaeger.Process{
-			ServiceName: serviceName,
-		},
-	})
-	if err != nil {
-		return xerrors.Errorf("connect jaeger exporter: %w", err)
+	if app.TraceExporter == nil {
+		var cfg jaeger.Config
+		if err := config.Load(&cfg); err != nil {
+			return err
+		}
+		exp, err := jaeger.New(cfg)
+		if err != nil {
+			return err
+		}
+		app.TraceExporter = exp
+		defer trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.SamplingProbability)})
 	}
-	trace.RegisterExporter(je)
-	trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.SamplingProbability)})
+	trace.RegisterExporter(app.TraceExporter)
 	return nil
 }
 
 func (app *App) connectMetrics() error {
-	pe, err := prometheus.NewExporter(prometheus.Options{
-		Namespace: strings.Replace(os.Getenv("SERVICE_NAME"), "-", "_", -1),
-		ConstLabels: map[string]string{
-			"environment": app.Config.Environment,
-		},
-	})
-	if err != nil {
-		return xerrors.Errorf("connect prometheus exporter: %w", err)
+	if app.MetricsExporter == nil {
+		pe, err := prom.New(app.Config)
+		if err != nil {
+			return err
+		}
+		app.metricsHandler = pe
 	}
-	view.RegisterExporter(pe)
-	app.metricsHandler = pe
+	view.RegisterExporter(app.MetricsExporter)
 	return nil
 }

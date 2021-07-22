@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/go-mixins/log"
-	"github.com/heptiolabs/healthcheck"
+	"gocloud.dev/server/health"
 
 	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
@@ -16,10 +16,9 @@ import (
 	"go.opencensus.io/zpages"
 )
 
-// Check служит для подключения внешних проверок на живость
-type Check struct {
-	Name  string
-	Check func() error
+// Checker служит для подключения внешних проверок на живость
+type Checker interface {
+	CheckHealth() error
 }
 
 // Replaceable functions
@@ -28,20 +27,13 @@ var (
 )
 
 // WithHealth обвязывает http.Handler для отдачи проверок на живность
-func WithHealth(src http.Handler, readinessChecks ...Check) http.Handler {
-	mux := http.NewServeMux()
-	health := healthcheck.NewHandler()
-	if lchecker, ok := src.(interface{ LivenessCheck() error }); ok {
-		health.AddLivenessCheck("app.liveness", lchecker.LivenessCheck)
-	}
-	if rchecker, ok := src.(interface{ ReadinessCheck() error }); ok {
-		health.AddReadinessCheck("app.readiness", rchecker.ReadinessCheck)
-	}
+func WithHealth(src http.Handler, readinessChecks ...Checker) http.Handler {
+	h := new(health.Handler)
 	for _, c := range readinessChecks {
-		health.AddReadinessCheck(c.Name, c.Check)
+		h.Add(c)
 	}
-	mux.HandleFunc("/live", health.LiveEndpoint)
-	mux.HandleFunc("/ready", health.ReadyEndpoint)
+	mux := http.NewServeMux()
+	mux.Handle("/healthz/readiness", h)
 	if src != nil {
 		mux.Handle("/", src)
 	}
@@ -111,9 +103,9 @@ func WithLog(src http.Handler, logger log.ContextLogger) http.Handler {
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/metrics"):
 			fallthrough
-		case strings.HasPrefix(r.URL.Path, "/live"):
+		case strings.HasPrefix(r.URL.Path, "/healthz"):
 			fallthrough
-		case strings.HasPrefix(r.URL.Path, "/ready"):
+		case strings.HasPrefix(r.URL.Path, "/debug"):
 			src.ServeHTTP(w, r)
 			return
 		}

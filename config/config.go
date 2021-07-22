@@ -18,11 +18,6 @@ type Config struct {
 	SentryDSN   string        `envconfig:"SENTRY_DSN"`
 	GraylogURI  string        `envconfig:"GRAYLOG_URI"`
 	StopTimeout time.Duration `envconfig:"STOP_TIMEOUT"`
-	Jaeger      struct {
-		SamplingProbability float64 `envconfig:"TRACE_SAMPLING" default:"0.001"`
-		JaegerAgentHost     string  `envconfig:"JAEGER_AGENT_HOST" default:"localhost"`
-		JaegerAgentPort     int     `envconfig:"JAEGER_AGENT_PORT" default:"6831"`
-	}
 }
 
 // Load parses env into configuration struct

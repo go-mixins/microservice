@@ -11,6 +11,8 @@ import (
 	"github.com/go-mixins/log"
 	"github.com/go-mixins/microservice/config"
 	mw "github.com/go-mixins/microservice/http"
+	"go.opencensus.io/stats/view"
+	"go.opencensus.io/trace"
 )
 
 // App binds various parts together
@@ -18,10 +20,12 @@ type App struct {
 	Config          *config.Config
 	Logger          log.ContextLogger
 	Handler         http.Handler
+	MetricsExporter view.Exporter
+	TraceExporter   trace.Exporter
 	wg              sync.WaitGroup
 	stopChan        chan struct{}
 	metricsHandler  http.Handler
-	readinessChecks []mw.Check
+	readinessChecks []mw.Checker
 	flushers        []interface{ Flush() }
 	once            sync.Once
 }
