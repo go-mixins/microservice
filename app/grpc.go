@@ -5,7 +5,6 @@ import (
 	"net"
 
 	"github.com/go-mixins/log"
-	"golang.org/x/xerrors"
 	"google.golang.org/grpc"
 
 	gRPCmw "github.com/go-mixins/microservice/grpc"
@@ -30,7 +29,7 @@ func (app *App) connectGRPC() (<-chan error, error) {
 	}
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", app.Config.GRPCPort))
 	if err != nil {
-		return nil, xerrors.Errorf("opening listener: %w", err)
+		return nil, fmt.Errorf("opening listener: %w", err)
 	}
 	app.wg.Add(1)
 	go func() {

@@ -3,6 +3,7 @@ package http
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"github.com/go-mixins/log"
 	"golang.org/x/net/html/charset"
 	"golang.org/x/text/encoding/charmap"
-	"golang.org/x/xerrors"
 	jsonpb "google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
@@ -81,9 +81,9 @@ func (d decoder) Decode(dest interface{}) (rErr error) {
 		if err != nil {
 			return err
 		}
-		return xerrors.Errorf("decode jsonpb: %w", unmarshaler.Unmarshal(data, pb))
+		return fmt.Errorf("decode jsonpb: %w", unmarshaler.Unmarshal(data, pb))
 	}
-	return xerrors.Errorf("decode json: %w", json.NewDecoder(d.r).Decode(dest))
+	return fmt.Errorf("decode json: %w", json.NewDecoder(d.r).Decode(dest))
 }
 
 func jsonPB(r *http.Request) bind.Decoder {

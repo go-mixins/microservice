@@ -1,13 +1,12 @@
 package json
 
 import (
+	"fmt"
 	"io"
 	"io/ioutil"
 
 	jsonpb "google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-
-	"golang.org/x/xerrors"
 )
 
 // Дефолтные кодеки
@@ -31,7 +30,7 @@ func Unmarshal(r io.Reader, pb proto.Message) error {
 		return err
 	}
 	if err := DefaultUnmarshaler.Unmarshal(data, pb); err != nil {
-		return xerrors.Errorf("unmarshal JSON: %w")
+		return fmt.Errorf("unmarshal JSON: %w", err)
 	}
 	return nil
 }
@@ -40,7 +39,7 @@ func Unmarshal(r io.Reader, pb proto.Message) error {
 func Marshal(out io.Writer, pb proto.Message) error {
 	data, err := DefaultMarshaler.Marshal(pb)
 	if err != nil {
-		return xerrors.Errorf("marshal to JSON: %w", err)
+		return fmt.Errorf("marshal to JSON: %w", err)
 	}
 	_, err = out.Write(data)
 	return err

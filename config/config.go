@@ -1,10 +1,10 @@
 package config
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/kelseyhightower/envconfig"
-	"golang.org/x/xerrors"
 )
 
 // Config for app
@@ -23,7 +23,7 @@ type Config struct {
 // Load parses env into configuration struct
 func Load(dest interface{}) error {
 	if err := envconfig.Process("", dest); err != nil {
-		return xerrors.Errorf("parse config: %w", err)
+		return fmt.Errorf("parse config: %w", err)
 	}
 	return nil
 }
