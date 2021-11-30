@@ -32,6 +32,7 @@ func (app *App) connectMetrics() error {
 			return err
 		}
 		app.metricsHandler = pe
+		app.MetricsExporter = pe
 	}
 	view.RegisterExporter(app.MetricsExporter)
 	return nil
