@@ -5,7 +5,6 @@ import (
 
 	"github.com/evalphobia/logrus_sentry"
 	"github.com/getsentry/raven-go"
-	logrusLogger "github.com/go-mixins/log/logrus"
 	"github.com/sirupsen/logrus"
 	graylog "gopkg.in/gemnasium/logrus-graylog-hook.v2"
 )
