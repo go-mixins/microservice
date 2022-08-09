@@ -7,7 +7,7 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.0
 	github.com/evalphobia/logrus_sentry v0.8.2
 	github.com/getsentry/raven-go v0.2.0
-	github.com/go-mixins/log v0.2.4
+	github.com/go-mixins/log v0.2.5
 	github.com/go-mixins/metadata v0.0.4
 	github.com/go-noodle/bind v0.0.0-20190326184538-3ddbac041875
 	github.com/go-noodle/noodle v0.0.0-20180314081423-c90fdeb956a9

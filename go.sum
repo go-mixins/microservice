@@ -189,8 +189,9 @@ github.com/go-logfmt/logfmt v0.3.0/go.mod h1:Qt1PoO58o5twSAckw1HlFXLmHsOX5/0LbT9
 github.com/go-logfmt/logfmt v0.4.0/go.mod h1:3RMwSq7FuexP4Kalkev3ejPJsZTpXXBr9+V4qmtdjCk=
 github.com/go-logfmt/logfmt v0.5.0 h1:TrB8swr/68K7m9CcGut2g3UOihhbcbiMAYiuTXdEih4=
 github.com/go-logfmt/logfmt v0.5.0/go.mod h1:wCYkCAKZfumFQihp8CzCvQ3paCTfi41vtzG1KdI/P7A=
-github.com/go-mixins/log v0.2.4 h1:Osx9CPC+UQXqKsb00sv/23CNSuRvUrDnasK83oyMRTI=
 github.com/go-mixins/log v0.2.4/go.mod h1:Wm0Mn3N0fIyBIIPtGggXGu+DLdpUYPvit7hWyJ4S7yg=
+github.com/go-mixins/log v0.2.5 h1:YoSWgZBpkQxvFD6VKQI+He/RkjxJ0qP+bUSub0HsXpA=
+github.com/go-mixins/log v0.2.5/go.mod h1:Wm0Mn3N0fIyBIIPtGggXGu+DLdpUYPvit7hWyJ4S7yg=
 github.com/go-mixins/metadata v0.0.4 h1:fPSjWs1dVhJTeKbyQpnG+5/AxzIKIxHCDX81PKhcrNE=
 github.com/go-mixins/metadata v0.0.4/go.mod h1:+q5Y2ud4BgrWKYs2DOrppfrALuehOM0KKIB/BzRs34Y=
 github.com/go-noodle/bind v0.0.0-20190326184538-3ddbac041875 h1:bvGq4vsopyKcQljMwOb6jiPE2VuALcZEVSXo4Ef+t9Q=

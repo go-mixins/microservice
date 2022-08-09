@@ -12,10 +12,11 @@ import (
 
 func (app *App) connectLogs() error {
 	cfg := app.Config
-	logger, ok := app.Logger.(*logrusLogger.ContextLogger)
+	loggerGetter, ok := app.Logger.(interface{ GetLogger() *logrus.Logger })
 	if !ok {
 		return fmt.Errorf("provided logger is not compatible with Logrus")
 	}
+	logger := loggerGetter.GetLogger()
 	if cfg.Debug {
 		logger.SetLevel(logrus.DebugLevel)
 	}
