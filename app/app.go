@@ -1,33 +1,57 @@
 package app
 
 import (
+	"context"
+	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/go-mixins/log"
-	"github.com/go-mixins/microservice/config"
-	mw "github.com/go-mixins/microservice/http"
+	"github.com/go-mixins/microservice/v2/config"
+	httpmw "github.com/go-mixins/microservice/v2/http"
+	"github.com/google/wire"
+	"go.opencensus.io/plugin/ocgrpc"
+	"go.opencensus.io/plugin/ochttp"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
+	"gocloud.dev/server"
+	"gocloud.dev/server/driver"
+	"gocloud.dev/server/health"
+	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 )
+
+var Set = wire.NewSet(wire.Struct(new(App),
+	"Config",
+	"Logger",
+	"Handler",
+	"HealthChecks",
+	"MetricsExporter",
+	"TraceExporter",
+	"DefaultSamplingPolicy",
+	"Driver",
+	"GRPCServer",
+))
+
+type ServerStopTimeout time.Duration
 
 // App binds various parts together
 type App struct {
-	Config          *config.Config
-	Logger          log.ContextLogger
-	Handler         http.Handler
-	MetricsExporter view.Exporter
-	TraceExporter   trace.Exporter
-	wg              sync.WaitGroup
-	stopChan        chan struct{}
-	metricsHandler  http.Handler
-	readinessChecks []mw.Checker
-	flushers        []interface{ Flush() }
-	once            sync.Once
+	Config                config.Config
+	Logger                log.ContextLogger
+	Handler               http.Handler
+	HealthChecks          []health.Checker
+	MetricsExporter       view.Exporter
+	TraceExporter         trace.Exporter
+	DefaultSamplingPolicy trace.Sampler
+	Driver                driver.Server
+	GRPCServer            *grpc.Server
+
+	flushers []interface{ Flush() } `wire:"-"`
 }
 
 // FlushLogs pending hooks
@@ -39,57 +63,65 @@ func (app *App) FlushLogs() {
 
 // Run the app
 func (app *App) Run() error {
-	app.once.Do(func() {
-		app.stopChan = make(chan struct{})
-	})
+	g, ctx := errgroup.WithContext(context.Background())
 	if err := app.connectLogs(); err != nil {
 		app.Logger.Warnf("log hooks are not available: %v", err)
 	}
-	if err := app.connectTracing(); err != nil {
-		app.Logger.Warnf("tracing is not available: %v", err)
+	handler := app.Handler
+	if handler != nil {
+		handler = httpmw.WithLog(handler, app.Logger)
 	}
-	if err := app.connectMetrics(); err != nil {
-		app.Logger.Warnf("metrics export is not available: %v", err)
-	}
-	if connector, ok := app.Handler.(interface{ Connect() error }); ok {
-		if err := connector.Connect(); err != nil {
-			return err
+	if app.MetricsExporter != nil {
+		view.RegisterExporter(app.MetricsExporter)
+		ochttp.ServerLatencyView.TagKeys = append(ochttp.ServerLatencyView.TagKeys, ochttp.KeyServerRoute)
+		if err := view.Register(ochttp.DefaultServerViews...); err != nil {
+			return fmt.Errorf("registering HTTP views: %w", err)
+		}
+		if h, ok := app.MetricsExporter.(http.Handler); ok {
+			handler = httpmw.WithMetrics(handler, h)
 		}
 	}
-	if closer, ok := app.Handler.(interface{ Close() error }); ok {
-		defer closer.Close()
+	server := server.New(handler, &server.Options{
+		RequestLogger:         nil, // we have our own logger middleware
+		HealthChecks:          app.HealthChecks,
+		TraceExporter:         app.TraceExporter,
+		DefaultSamplingPolicy: app.DefaultSamplingPolicy,
+		Driver:                app.Driver,
+	})
+	g.Go(func() error {
+		return server.ListenAndServe(fmt.Sprintf(":%d", app.Config.HTTPPort))
+	})
+	if grpcServer := app.GRPCServer; grpcServer != nil {
+		if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
+			return fmt.Errorf("registering gRPC views: %w", err)
+		}
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", app.Config.GRPCPort))
+		if err != nil {
+			return fmt.Errorf("opening gRPC listener: %w", err)
+		}
+		g.Go(func() error {
+			return grpcServer.Serve(lis)
+		})
 	}
-	httpErrors, err := app.connectHTTP()
-	if err != nil {
-		return err
-	}
-	grpcErrors, err := app.connectGRPC()
-	if err != nil {
-		return err
-	}
+	errChan := make(chan error, 1)
+	go func() {
+		defer close(errChan)
+		errChan <- g.Wait()
+	}()
 	app.Logger.Debugf("running in Timezone %v", time.Local)
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, os.Kill, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGKILL)
 	defer signal.Stop(interrupt)
 	select {
 	case sig := <-interrupt:
-		close(app.stopChan)
 		app.Logger.Infof("received %v", sig)
-	case err = <-httpErrors:
-		close(app.stopChan)
-		app.Logger.Errorf("in HTTP handler: %+v", err)
-	case err = <-grpcErrors:
-		app.Logger.Errorf("in gRPC handler: %+v", err)
-		close(app.stopChan)
-	case <-app.stopChan:
-		app.Logger.Info("force stop")
+		if app.GRPCServer != nil {
+			app.GRPCServer.GracefulStop()
+		}
+		ctx, cancel := context.WithTimeout(ctx, app.Config.StopTimeout)
+		defer cancel()
+		return server.Shutdown(ctx)
+	case err := <-errChan:
+		return err
 	}
-	app.wg.Wait()
-	return err
-}
-
-func (app *App) Stop() error {
-	close(app.stopChan)
-	app.wg.Wait()
-	return nil
 }

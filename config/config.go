@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/wire"
 	"github.com/kelseyhightower/envconfig"
 )
 
@@ -20,10 +21,13 @@ type Config struct {
 	StopTimeout time.Duration `envconfig:"STOP_TIMEOUT"`
 }
 
+var Set = wire.NewSet(Load)
+
 // Load parses env into configuration struct
-func Load(dest interface{}) error {
-	if err := envconfig.Process("", dest); err != nil {
-		return fmt.Errorf("parse config: %w", err)
+func Load() (Config, error) {
+	var dest Config
+	if err := envconfig.Process("", &dest); err != nil {
+		return dest, fmt.Errorf("parse config: %w", err)
 	}
-	return nil
+	return dest, nil
 }

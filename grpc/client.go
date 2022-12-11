@@ -2,20 +2,17 @@ package grpc
 
 import (
 	mdGRPC "github.com/go-mixins/metadata/grpc"
+	"github.com/google/wire"
 	"go.opencensus.io/plugin/ocgrpc"
 	"google.golang.org/grpc"
 )
 
-func ClientMiddleware(extraMW ...grpc.UnaryClientInterceptor) []grpc.DialOption {
-	res := []grpc.DialOption{
+var ClientSet = wire.NewSet(ClientMiddleware)
+
+func ClientMiddleware() []grpc.DialOption {
+	return []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
-		grpc.WithUnaryInterceptor(
-			mdGRPC.UnaryClientInterceptor(),
-		),
+		grpc.WithUnaryInterceptor(mdGRPC.UnaryClientInterceptor()),
 	}
-	for _, e := range extraMW {
-		res = append(res, grpc.WithUnaryInterceptor(e))
-	}
-	return res
 }

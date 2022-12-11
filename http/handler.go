@@ -8,10 +8,8 @@ import (
 	"time"
 
 	"github.com/go-mixins/log"
-	"gocloud.dev/server/health"
 
 	"go.opencensus.io/plugin/ochttp"
-	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
 	"go.opencensus.io/zpages"
 )
@@ -26,20 +24,6 @@ var (
 	NowFunc = time.Now
 )
 
-// WithHealth обвязывает http.Handler для отдачи проверок на живность
-func WithHealth(src http.Handler, readinessChecks ...Checker) http.Handler {
-	h := new(health.Handler)
-	for _, c := range readinessChecks {
-		h.Add(c)
-	}
-	mux := http.NewServeMux()
-	mux.Handle("/healthz/readiness", h)
-	if src != nil {
-		mux.Handle("/", src)
-	}
-	return mux
-}
-
 // WithMetrics обвязывает http.Handler для отдачи метрик
 func WithMetrics(src http.Handler, metrics http.Handler) http.Handler {
 	mux := http.NewServeMux()
@@ -47,26 +31,10 @@ func WithMetrics(src http.Handler, metrics http.Handler) http.Handler {
 	if metrics != nil {
 		mux.Handle("/metrics", metrics)
 	}
-	mux.Handle("/", src)
-	return mux
-}
-
-// WithTracing обвязывает http.Handler для передачи opencensus и метаданных.
-func WithTracing(src http.Handler) http.Handler {
-	return &ochttp.Handler{
-		Handler:          src,
-		IsPublicEndpoint: true,
-		GetStartOptions: func(r *http.Request) trace.StartOptions {
-			startOptions := trace.StartOptions{}
-			switch {
-			case strings.HasPrefix(r.UserAgent(), "Prometheus/"):
-				fallthrough
-			case strings.HasPrefix(r.URL.Path, "swagger-ui/"):
-				startOptions.Sampler = trace.NeverSample()
-			}
-			return startOptions
-		},
+	if src != nil {
+		mux.Handle("/", src)
 	}
+	return mux
 }
 
 // clientIP implements a best effort algorithm to return the real client IP, it parses
@@ -92,12 +60,6 @@ var httpOnce sync.Once
 
 // WithLog обвязывает http.Handler для логирования запросов
 func WithLog(src http.Handler, logger log.ContextLogger) http.Handler {
-	httpOnce.Do(func() {
-		ochttp.ServerLatencyView.TagKeys = append(ochttp.ServerLatencyView.TagKeys, ochttp.KeyServerRoute)
-		if err := view.Register(ochttp.DefaultServerViews...); err != nil {
-			logger.Errorf("registering HTTP views: %+v", err)
-		}
-	})
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		route := r.URL.Path
 		switch {
@@ -113,7 +75,7 @@ func WithLog(src http.Handler, logger log.ContextLogger) http.Handler {
 		ctx := r.Context()
 		traceID := trace.FromContext(ctx).SpanContext().TraceID.String()
 		ochttp.SetRoute(ctx, route)
-		logger := logger.WithContext(log.M{
+		logger = logger.WithContext(log.M{
 			"http_route": route,
 			"client_ip":  clientIP(r),
 			"trace_id":   traceID,
