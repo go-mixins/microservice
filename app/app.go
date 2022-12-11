@@ -41,8 +41,6 @@ var Set = wire.NewSet(
 	wire.Bind(new(driver.Server), new(*server.DefaultDriver)),
 )
 
-type ServerStopTimeout time.Duration
-
 // App binds various parts together
 type App struct {
 	Config                config.Config
@@ -58,8 +56,7 @@ type App struct {
 	flushers []interface{ Flush() } `wire:"-"`
 }
 
-// FlushLogs pending hooks
-func (app *App) FlushLogs() {
+func (app *App) flushLogs() {
 	for _, f := range app.flushers {
 		f.Flush()
 	}
@@ -67,10 +64,11 @@ func (app *App) FlushLogs() {
 
 // Run the app
 func (app *App) Run() error {
-	g, ctx := errgroup.WithContext(context.Background())
 	if err := app.connectLogs(); err != nil {
 		app.Logger.Warnf("log hooks are not available: %v", err)
 	}
+	defer app.flushLogs()
+	g, ctx := errgroup.WithContext(context.Background())
 	handler := app.Handler
 	if handler != nil {
 		handler = httpmw.WithLog(handler, app.Logger)
