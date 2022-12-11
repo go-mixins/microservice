@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"runtime/debug"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/go-mixins/log"
@@ -13,11 +12,6 @@ import (
 	"go.opencensus.io/trace"
 	"go.opencensus.io/zpages"
 )
-
-// Checker служит для подключения внешних проверок на живость
-type Checker interface {
-	CheckHealth() error
-}
 
 // Replaceable functions
 var (
@@ -55,8 +49,6 @@ func clientIP(r *http.Request) string {
 	}
 	return strings.TrimSpace(r.RemoteAddr)
 }
-
-var httpOnce sync.Once
 
 // WithLog обвязывает http.Handler для логирования запросов
 func WithLog(src http.Handler, logger log.ContextLogger) http.Handler {

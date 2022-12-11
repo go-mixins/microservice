@@ -95,7 +95,7 @@ func (app *App) Run() error {
 	g.Go(func() error {
 		return server.ListenAndServe(fmt.Sprintf(":%d", app.Config.HTTPPort))
 	})
-	if grpcServer := app.GRPCServer; grpcServer != nil {
+	if app.GRPCServer != nil {
 		if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
 			return fmt.Errorf("registering gRPC views: %w", err)
 		}
@@ -104,7 +104,7 @@ func (app *App) Run() error {
 			return fmt.Errorf("opening gRPC listener: %w", err)
 		}
 		g.Go(func() error {
-			return grpcServer.Serve(lis)
+			return app.GRPCServer.Serve(lis)
 		})
 	}
 	errChan := make(chan error, 1)
@@ -114,7 +114,7 @@ func (app *App) Run() error {
 	}()
 	app.Logger.Debugf("running in Timezone %v", time.Local)
 	interrupt := make(chan os.Signal, 1)
-	signal.Notify(interrupt, os.Interrupt, os.Kill, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM, syscall.SIGKILL)
+	signal.Notify(interrupt, os.Interrupt, syscall.SIGINT, syscall.SIGQUIT, syscall.SIGTERM)
 	defer signal.Stop(interrupt)
 	select {
 	case sig := <-interrupt:
