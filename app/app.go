@@ -99,7 +99,11 @@ func (app *App) Run() error {
 		if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
 			return fmt.Errorf("registering gRPC views: %w", err)
 		}
-		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", app.Config.GRPCPort))
+		port := app.Config.GRPCPort
+		if app.Config.GRPCPort == 0 {
+			port = app.Config.HTTPPort + 1
+		}
+		lis, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
 		if err != nil {
 			return fmt.Errorf("opening gRPC listener: %w", err)
 		}
