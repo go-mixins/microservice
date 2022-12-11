@@ -25,17 +25,21 @@ import (
 	"google.golang.org/grpc"
 )
 
-var Set = wire.NewSet(wire.Struct(new(App),
-	"Config",
-	"Logger",
-	"Handler",
-	"HealthChecks",
-	"MetricsExporter",
-	"TraceExporter",
-	"DefaultSamplingPolicy",
-	"Driver",
-	"GRPCServer",
-))
+var Set = wire.NewSet(
+	wire.Struct(new(App),
+		"Config",
+		"Logger",
+		"Handler",
+		"HealthChecks",
+		"MetricsExporter",
+		"TraceExporter",
+		"DefaultSamplingPolicy",
+		"Driver",
+		"GRPCServer",
+	),
+	wire.Value(&server.DefaultDriver{}),
+	wire.Bind(new(driver.Server), new(*server.DefaultDriver)),
+)
 
 type ServerStopTimeout time.Duration
 
