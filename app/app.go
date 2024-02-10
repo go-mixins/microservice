@@ -12,7 +12,7 @@ import (
 	"github.com/go-mixins/microservice/config"
 	mw "github.com/go-mixins/microservice/http"
 	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
+	"go.opentelemetry.io/otel/trace"
 )
 
 // App binds various parts together
@@ -21,7 +21,7 @@ type App struct {
 	Logger          log.ContextLogger
 	Handler         http.Handler
 	MetricsExporter view.Exporter
-	TraceExporter   trace.Exporter
+	TracerProvider  trace.TracerProvider
 	wg              sync.WaitGroup
 	stopChan        chan struct{}
 	metricsHandler  http.Handler

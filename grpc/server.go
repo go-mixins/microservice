@@ -12,6 +12,7 @@ import (
 	"go.opencensus.io/plugin/ocgrpc"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/trace"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -34,7 +35,7 @@ func ServerMiddleware(logger log.ContextLogger, extraMW ...grpc.UnaryServerInter
 		}
 	})
 	return []grpc.ServerOption{
-		grpc.StatsHandler(&ocgrpc.ServerHandler{}),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(grpcMW.ChainUnaryServer(
 			append([]grpc.UnaryServerInterceptor{
 				RequestLogging(logger),
