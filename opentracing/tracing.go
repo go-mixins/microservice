@@ -16,11 +16,11 @@ import (
 
 // Config stores Jaeger-specific parameters
 type Config struct {
-	ServiceName         string  `envconfig:"SERVICE_NAME" default:"server"`
-	Enabled             bool    `envconfig:"TRACING_ENABLED" default:"false"`
+	ServiceName string `envconfig:"SERVICE_NAME" default:"server"`
+	Enabled     bool   `envconfig:"TRACING_ENABLED" default:"false"`
 }
 
-func New( ctx context.Context, cfg Config,) (trace.TracerProvider, error) {
+func New(ctx context.Context, cfg Config) (trace.TracerProvider, error) {
 	if !cfg.Enabled {
 		return noop.NewTracerProvider(), nil
 	}

@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+
 	"github.com/go-mixins/microservice/census/prom"
 	"github.com/go-mixins/microservice/config"
 	"github.com/go-mixins/microservice/opentracing"
@@ -14,7 +16,7 @@ func (app *App) connectTracing() error {
 		if err := config.Load(&cfg); err != nil {
 			return err
 		}
-		exp, err := opentracing.New(cfg)
+		exp, err := opentracing.New(context.Background(), cfg)
 		if err != nil {
 			return err
 		}
