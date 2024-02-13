@@ -2,14 +2,13 @@ package grpc
 
 import (
 	mdGRPC "github.com/go-mixins/metadata/grpc"
-	"go.opencensus.io/plugin/ocgrpc"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
 func ClientMiddleware(extraMW ...grpc.UnaryClientInterceptor) []grpc.DialOption {
 	res := []grpc.DialOption{
-		grpc.WithInsecure(),
-		grpc.WithStatsHandler(&ocgrpc.ClientHandler{}),
+		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 		grpc.WithUnaryInterceptor(
 			mdGRPC.UnaryClientInterceptor(),
 		),

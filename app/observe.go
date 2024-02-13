@@ -1,27 +1,28 @@
 package app
 
 import (
-	"github.com/go-mixins/microservice/census/jaeger"
+	"context"
+
 	"github.com/go-mixins/microservice/census/prom"
 	"github.com/go-mixins/microservice/config"
+	"github.com/go-mixins/microservice/opentracing"
 	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
+	"go.opentelemetry.io/otel"
 )
 
 func (app *App) connectTracing() error {
-	if app.TraceExporter == nil {
-		var cfg jaeger.Config
+	if app.TracerProvider == nil {
+		var cfg opentracing.Config
 		if err := config.Load(&cfg); err != nil {
 			return err
 		}
-		exp, err := jaeger.New(cfg)
+		exp, err := opentracing.New(context.Background(), cfg)
 		if err != nil {
 			return err
 		}
-		app.TraceExporter = exp
-		defer trace.ApplyConfig(trace.Config{DefaultSampler: trace.ProbabilitySampler(cfg.SamplingProbability)})
+		app.TracerProvider = exp
 	}
-	trace.RegisterExporter(app.TraceExporter)
+	otel.SetTracerProvider(app.TracerProvider)
 	return nil
 }
 

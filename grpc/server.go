@@ -9,9 +9,8 @@ import (
 	"github.com/go-mixins/log"
 	mdGRPC "github.com/go-mixins/metadata/grpc"
 	"github.com/go-mixins/microservice/json"
-	"go.opencensus.io/plugin/ocgrpc"
-	"go.opencensus.io/stats/view"
-	"go.opencensus.io/trace"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
@@ -28,13 +27,8 @@ var (
 
 // ServerMiddleware создает рекомендованный набор опций сервера
 func ServerMiddleware(logger log.ContextLogger, extraMW ...grpc.UnaryServerInterceptor) []grpc.ServerOption {
-	grpcOnce.Do(func() {
-		if err := view.Register(ocgrpc.DefaultServerViews...); err != nil {
-			logger.Errorf("registering gRPC views: %+v", err)
-		}
-	})
 	return []grpc.ServerOption{
-		grpc.StatsHandler(&ocgrpc.ServerHandler{}),
+		grpc.StatsHandler(otelgrpc.NewServerHandler()),
 		grpc.UnaryInterceptor(grpcMW.ChainUnaryServer(
 			append([]grpc.UnaryServerInterceptor{
 				RequestLogging(logger),
@@ -60,7 +54,7 @@ func RequestLogging(logger log.ContextLogger) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (_ interface{}, rErr error) {
 		logger := logger.WithContext(log.M{
 			"method":   info.FullMethod,
-			"trace_id": trace.FromContext(ctx).SpanContext().TraceID.String(),
+			"trace_id": trace.SpanFromContext(ctx).SpanContext().TraceID().String(),
 		})
 		ctx = log.With(ctx, logger)
 		ts := NowFunc()
