@@ -79,6 +79,17 @@ var httpOnce sync.Once
 // WithLog обвязывает http.Handler для логирования запросов
 func WithLog(src http.Handler, logger log.ContextLogger) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ts := NowFunc()
+		logger := logger
+		defer func() {
+			if err := recover(); err != nil {
+				http.Error(w, "internal server error", 500)
+				logger.Errorf("%+v", err)
+				logger.Debugf("panic trace: %s", debug.Stack())
+				return
+			}
+			logger.Debugf("finished request in %v", NowFunc().Sub(ts))
+		}()
 		route := r.URL.Path
 		switch {
 		case strings.HasPrefix(r.URL.Path, "/metrics"):
@@ -89,24 +100,14 @@ func WithLog(src http.Handler, logger log.ContextLogger) http.Handler {
 			src.ServeHTTP(w, r)
 			return
 		}
-		ts := NowFunc()
 		ctx := r.Context()
 		traceID := trace.SpanFromContext(ctx).SpanContext().TraceID().String()
-		logger := logger.WithContext(log.M{
+		logger = logger.WithContext(log.M{
 			"http_route": route,
 			"client_ip":  clientIP(r),
 			"trace_id":   traceID,
 		})
 		ctx = log.With(ctx, logger)
-		defer func() {
-			if err := recover(); err != nil {
-				http.Error(w, "internal server error", 500)
-				logger.Errorf("%+v", err)
-				logger.Debugf("panic trace: %s", debug.Stack())
-				return
-			}
-			logger.Debugf("finished request in %v", NowFunc().Sub(ts))
-		}()
 		w.Header().Set("X-Trace-ID", traceID)
 		src.ServeHTTP(w, r.WithContext(ctx))
 	})
